@@ -47,6 +47,8 @@ Note: 1 source map(s) are public, so your original source code is readable too.
 | **Check** | Google API keys without clear context (Maps keys are fine *if* restricted), Stripe test secrets |
 | **Safe** | Stripe `pk_`, Supabase `anon` / `sb_publishable_`, Firebase web config |
 
+**Any other API** is caught by how the key is used, not its shape: a string sent as `Authorization: Bearer …`, in an `x-api-key` style header, or as `?key=` in a URL, even when a minifier renamed the variable. LeakLock follows the variable back to its value and names the API from where the request goes (`api.kie.ai` → "kie.ai API key"). Credential-named variables (`apiKey`, `SECRET_TOKEN`) holding random strings are flagged for review.
+
 Missing a provider? Open an issue or a PR: rules live in [`src/rules.js`](src/rules.js), one object each.
 
 ## Two hard truths
