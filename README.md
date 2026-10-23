@@ -2,12 +2,12 @@
 
 **Is your app leaking API keys? Find out in 10 seconds.**
 
-Vibe-coded apps (Lovable, Bolt, v0, Cursor, plain Vite) often ship secret keys inside the JavaScript every visitor downloads. Anyone can press **Inspect → Sources**, search for `sk-`, and run up your OpenAI bill, empty your Gemini credits, or read your whole Supabase database.
+Any website can leak, on your own domain or any host. Vibe-coded apps (Lovable, Bolt, v0, Cursor, Next.js, plain Vite) especially often ship secret keys inside the JavaScript every visitor downloads. Anyone can press **Inspect → Sources**, search for `sk-`, and run up your OpenAI bill, empty your Gemini credits, or read your whole Supabase database.
 
 LeakLock scans what your site actually sends to the browser and tells you, in plain words, which keys are exposed and what to do.
 
 ```bash
-npx leaklock scan myapp.lovable.app    # a live site
+npx leaklock scan yourapp.com          # any live site, any host
 npx leaklock scan dist/                # your build folder, before you publish
 ```
 
@@ -31,7 +31,8 @@ Note: 1 source map(s) are public, so your original source code is readable too.
 
 ## Why LeakLock
 
-- **Scans what ships, not your repo.** HTML, every JS bundle, lazy-loaded chunks (Vite code-splitting), and public source maps. That's where keys actually leak.
+- **Works on any site.** Custom domains, ccTLDs (`.co.in`, `.com.au`), CDN-hosted bundles, Vite, Next.js and webpack chunks. Third-party trackers are skipped so their keys aren't blamed on you.
+- **Scans what ships, not your repo.** HTML, inline scripts, every JS bundle, lazy-loaded chunks, and public source maps. That's where keys actually leak.
 - **No false alarms.** Stripe `pk_`, Supabase `anon` and Firebase web keys are public by design. LeakLock decodes Supabase JWTs to tell `anon` from `service_role`, and reads context to tell a Firebase config from a Gemini call.
 - **Never shows a full key.** Output is always masked (`sk-p…9xQz`). The web checker stores nothing.
 - **Zero dependencies.** One small, auditable Node package.
