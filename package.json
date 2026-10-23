@@ -1,0 +1,19 @@
+{
+  "name": "leaklock",
+  "version": "0.1.0",
+  "description": "Find secret API keys leaking from your website's browser bundles. Zero dependencies.",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "bin": { "leaklock": "bin/leaklock.js" },
+  "files": ["src", "bin", "README.md", "LICENSE"],
+  "scripts": {
+    "test": "node --test test/*.test.js",
+    "start": "node server/index.js"
+  },
+  "engines": { "node": ">=18" },
+  "keywords": ["security", "api-key", "secret-scanning", "lovable", "bolt", "vite", "vibe-coding", "leak"],
+  "author": "Sandeep Roy (https://github.com/sgroy10)",
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git+https://github.com/sgroy10/leaklock.git" }
+}
