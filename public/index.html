@@ -525,7 +525,7 @@ console.log(report.summary);
     shackle.push([cx + tx * Math.cos(a) * r, cy + ty * Math.cos(a) * r, Math.sin(a) * r]);
   }
   const frags = ['sk-proj-…', 'Bearer d41f…', 'x-api-key', '?key=AIza…', 'service_role', 'sk_live_…', 'ghp_…', 'xi-api-key'];
-  const orb = frags.map((s, i) => ({ s, a: i / frags.length * Math.PI * 2, y: (Math.random() - .5) * 1.8, rad: 2.45 + Math.random() * .25, sp: .15 + Math.random() * .12 }));
+  const orb = frags.map((s, i) => ({ s, a: i / frags.length * Math.PI * 2, y: -.95 + (i % 4) * .62, rad: 2.2, sp: .16 }));
   let rotY = .5, rotX = -.18, mx = 0, my = 0, open = .45, openT = .45, speed = .28, speedT = .28;
   let tint = [10, 10, 10], tintT = [10, 10, 10], acc = [229, 72, 77], accT = [229, 72, 77];
   addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; });
@@ -576,8 +576,10 @@ console.log(report.summary);
       o.a += dt * o.sp * (speed / .28) * .6;
       const [x, y, z] = proj(Math.cos(o.a) * o.rad, o.y + .3, Math.sin(o.a) * o.rad, ry);
       const depth = Math.max(0, Math.min(1, (z + 2.5) / 5));
-      if (depth > .55) continue;
-      ctx.fillStyle = `rgba(${acc[0] | 0},${acc[1] | 0},${acc[2] | 0},${Math.max(0, .85 - depth * 1.4)})`;
+      // only show labels on the left and right of the lock, never in front of or behind it
+      const side = Math.abs(Math.cos(o.a + ry));
+      if (side < .82) continue;
+      ctx.fillStyle = `rgba(${acc[0] | 0},${acc[1] | 0},${acc[2] | 0},${Math.min(1, (side - .82) / .1) * .9})`;
       ctx.fillText(o.s, x, y);
     }
     if (!reduce) requestAnimationFrame(frame);
@@ -595,9 +597,9 @@ document.querySelectorAll('[data-tab]').forEach((b) => b.addEventListener('click
   document.querySelectorAll('[data-pane]').forEach((p) => p.classList.toggle('on', p.dataset.pane === b.dataset.tab));
 }));
 async function copyText(btn, text) {
-  try { await navigator.clipboard.writeText(text); btn.textContent = 'Copied'; btn.classList.add('done'); }
-  catch { btn.textContent = 'Select to copy'; }
-  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1800);
+  try { await navigator.clipboard.writeText(text); btn.textContent = '✓ Copied'; btn.classList.add('done'); }
+  catch { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); btn.textContent = '✓ Copied'; btn.classList.add('done'); }
+  setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 3000);
 }
 document.querySelector('[data-copy="demo"]').addEventListener('click', (e) => copyText(e.currentTarget, document.getElementById('demoPrompt').textContent));
 document.querySelector('[data-copy="code"]').addEventListener('click', (e) => copyText(e.currentTarget, document.querySelector('[data-pane].on').textContent.split('\n').filter((l) => !/^\s*(#|\/\/)/.test(l)).join('\n').trim()));
