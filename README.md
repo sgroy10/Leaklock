@@ -1,33 +1,81 @@
 # 🔒 LeakLock
 
-**Is your app leaking API keys? Find out in 10 seconds.**
+**Gitleaks checks your repo. LeakLock checks what you ship.**
 
-Any website can leak, on your own domain or any host. Vibe-coded apps (Lovable, Bolt, v0, Cursor, Next.js, plain Vite) especially often ship secret keys inside the JavaScript every visitor downloads. Anyone can press **Inspect → Sources**, search for `sk-`, and run up your OpenAI bill, empty your Gemini credits, or read your whole Supabase database.
-
-LeakLock scans what your site actually sends to the browser and tells you, in plain words, which keys are exposed and what to do.
+Find the secret API keys your website hands to every visitor, including keys for APIs no scanner has a pattern for. Then get a fix you can paste straight into Lovable, Bolt or Cursor.
 
 ```bash
 npx leaklock scan yourapp.com          # any live site, any host
-npx leaklock scan dist/                # your build folder, before you publish
+npx leaklock scan dist/ --fix          # your build folder, with fixes
 ```
+
+Or paste a URL into the free web checker: **https://leaklock-production-2a1e.up.railway.app**
 
 ```
 LeakLock scanned https://myapp.lovable.app/ (6 files)
 
 CRITICAL Supabase service_role key (project abcdefghijklmnop)  eyJh…Xk2Q
          in /assets/index-a1b2.js
-         The service_role key bypasses Row Level Security. Anyone with it can read,
-         change or delete your entire database. Rotate the JWT secret now.
-SECRET   OpenAI  sk-p…9xQz
-         in /assets/Chat-e5f6.js, /assets/index-a1b2.js.map
-         Rotate: https://platform.openai.com/api-keys
+SECRET   kie.ai API key  d41f…a07c
+         in /assets/Studio-e5f6.js
+         A secret key sent as a Bearer token to api.kie.ai. Anyone can copy it
+         from your site and call that API as you.
 SAFE     Supabase anon key (project abcdefghijklmnop)  eyJh…c3Rw
          Public by design. Your data is only as safe as your Row Level Security policies.
 
-Note: 1 source map(s) are public, so your original source code is readable too.
-
 1 critical · 1 secret · 0 to review · 1 safe (public by design)
 ```
+
+## Not every key starts with `sk-`
+
+Pattern scanners (Gitleaks, TruffleHog, and most "is my app leaking" checkers) only find key formats they've been taught. Plenty of AI, image and voice APIs hand out plain random strings, like 32 hex characters with no prefix. Those sail straight through.
+
+LeakLock also catches a key by **how your code uses it**: sent as `Authorization: Bearer …`, in an `x-api-key` style header, or as `?key=` in a URL. It follows minified variables back to the literal they hold, and names the API from where the request goes (`api.kie.ai` → "kie.ai API key").
+
+Try it on the demo app, which has fake keys planted on purpose:
+
+```bash
+git clone https://github.com/sgroy10/leaklock && cd leaklock
+node bin/leaklock.js scan examples/leaky-app/dist --fix
+```
+
+| | Gitleaks / TruffleHog | LeakLock |
+|---|---|---|
+| Scans | git history, files | what your live site or build actually serves (HTML, bundles, lazy chunks, source maps) |
+| Keys with a known format | ✅ hundreds | ✅ 30+ that matter for web apps |
+| Keys with **no** known format | ❌ (or noisy entropy guesses) | ✅ found by usage, traced through minified code |
+| Public-by-design keys (`pk_`, Supabase anon, Firebase) | often flagged | marked safe, with the reason |
+| Fix for each leak | ❌ | ✅ steps plus a prompt for your AI builder |
+
+Use both: Gitleaks keeps keys out of git, LeakLock catches the ones that slip into your bundle through `VITE_` / `NEXT_PUBLIC_` variables.
+
+## GitHub Action
+
+```yaml
+# .github/workflows/leaklock.yml
+name: leaklock
+on: [push, pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: npm ci && npm run build
+      - uses: sgroy10/leaklock@v1
+        with:
+          target: dist          # or a preview URL, e.g. https://pr-42.myapp.dev
+          fail-on: secret       # critical | secret | review | none
+```
+
+The job fails when a secret is about to ship, and the run summary lists every finding (masked).
+
+## Fixes you can paste
+
+`--fix` (and the web checker) gives each leak plain steps and a prompt for the AI builder that made your app, e.g.:
+
+> My app exposes a kie.ai API key in the browser bundle (found in /assets/Studio-e5f6.js, sent to api.kie.ai). Anyone can copy it. Fix this without changing how the app behaves: 1. Create a server-side function (use a Supabase Edge Function if this project uses Supabase…) that makes the same kie.ai request, reading the key from a secret named KIE_AI_API_KEY. 2. Replace the browser's direct call with a call to that function… 5. Do not change any UI, routes or other logic.
+
+The prompt never contains your key.
 
 ## Why LeakLock
 
@@ -36,7 +84,7 @@ Note: 1 source map(s) are public, so your original source code is readable too.
 - **No false alarms.** Stripe `pk_`, Supabase `anon` and Firebase web keys are public by design. LeakLock decodes Supabase JWTs to tell `anon` from `service_role`, and reads context to tell a Firebase config from a Gemini call.
 - **Never shows a full key.** Output is always masked (`sk-p…9xQz`). The web checker stores nothing.
 - **Zero dependencies.** One small, auditable Node package.
-- **CI-ready.** `--fail-on=secret` exits 1 when a secret is in your build. `--json` for scripts.
+- **CI-ready.** `--fail-on=secret` exits 1 when a secret is in your build. `--json` for scripts. GitHub Action included.
 
 ## What it detects
 
@@ -54,7 +102,7 @@ Missing a provider? Open an issue or a PR: rules live in [`src/rules.js`](src/ru
 ## Two hard truths
 
 1. **A key that reaches the browser cannot be hidden.** Obfuscation, splitting and in-browser encryption all fail: the key is visible in the Network tab the moment it's sent.
-2. **A key that was public is burned.** Rotate it once, then keep the new one off the browser.
+2. **A key that was public may already be copied.** Moving it to a server stops new copies; rotating it cuts off anyone who already took it.
 
 ## Use as a library
 
@@ -77,10 +125,15 @@ The checker only reads public files a browser would load, refuses private/intern
 
 - [x] Detector core + tests
 - [x] CLI + web checker
+- [x] Unknown-format keys found by usage
+- [x] Fix steps + AI-builder prompts
+- [x] GitHub Action
 - [ ] Vite plugin: warn (or fail) the build when a secret is about to ship
+- [ ] Verify mode: check whether a found key is still live (opt-in, local only)
 - [ ] **Shield**: swap the real key in your build for a useless `ll_pub_` token and route calls through a tiny proxy in *your own* Cloudflare or Supabase account (origin check, endpoint allow-list, rate limit, daily cap). No code changes.
-- [ ] Lovable MCP tools and Bolt one-line install
 
 ## License
 
-MIT © [Sandeep Roy](https://github.com/sgroy10), maker of [SpecLock](https://github.com/sgroy10/speclock).
+MIT © [Sandeep Roy](https://github.com/sgroy10)
+
+Only scan sites you own or have permission to test.
