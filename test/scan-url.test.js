@@ -45,3 +45,12 @@ test('refuses private addresses by default', async () => {
   await assert.rejects(scanUrl('http://localhost/'), /Private addresses/);
   await assert.rejects(scanUrl('file:///etc/passwd'), /http and https/);
 });
+
+import { registrableDomain } from '../src/scan-url.js';
+test('registrableDomain handles custom domains, ccTLDs and shared hosts', () => {
+  assert.equal(registrableDomain('www.example.com'), 'example.com');
+  assert.equal(registrableDomain('app.shop.example.co.in'), 'example.co.in');
+  assert.equal(registrableDomain('cdn.example.com.au'), 'example.com.au');
+  assert.equal(registrableDomain('myapp.lovable.app'), 'myapp.lovable.app');
+  assert.equal(registrableDomain('foo.vercel.app'), 'foo.vercel.app');
+});
