@@ -14,7 +14,7 @@ export const RULES = [
     id: 'private-key',
     provider: 'Private key',
     severity: 'critical',
-    re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----/g,
+    re: /-----BEGIN (?:RSA |EC |DSA |OPENSSH |PGP |ENCRYPTED )?PRIVATE KEY(?: BLOCK)?-----(?=(?:\\*n|\s)*[A-Za-z0-9+\/=]{64})/g, // body required: placeholders like "-----BEGIN PRIVATE KEY-----\n..." are ignored
     advice: 'A private key is in your public files. Generate a new key pair and revoke this one.',
   },
   {
