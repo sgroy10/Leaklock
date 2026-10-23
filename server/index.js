@@ -17,7 +17,7 @@ const cache = new Map(); // normalized url -> { at, result }
 let running = 0;
 let totalScans = 0;
 
-const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain', '.woff2': 'font/woff2' };
+const TYPES = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.svg': 'image/svg+xml', '.png': 'image/png', '.ico': 'image/x-icon', '.txt': 'text/plain', '.woff2': 'font/woff2', '.webp': 'image/webp' };
 const SECURITY_HEADERS = {
   'x-content-type-options': 'nosniff',
   'referrer-policy': 'no-referrer',
@@ -78,7 +78,7 @@ async function handleStatic(res, path) {
   if (path.includes('..')) return send(res, 400, 'Bad path');
   try {
     const body = await readFile(join(PUBLIC, path));
-    send(res, 200, body, { 'content-type': TYPES[extname(path)] || 'application/octet-stream', 'cache-control': path.startsWith('/fonts/') ? 'public, max-age=31536000, immutable' : 'public, max-age=300' });
+    send(res, 200, body, { 'content-type': TYPES[extname(path)] || 'application/octet-stream', 'cache-control': (path.startsWith('/fonts/') || path.endsWith('.webp')) ? 'public, max-age=31536000, immutable' : 'public, max-age=300' });
   } catch {
     send(res, 404, 'Not found');
   }
