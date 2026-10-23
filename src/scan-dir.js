@@ -1,3 +1,4 @@
+import { withFixes } from './fix.js';
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join, relative, extname } from 'node:path';
 import { scanText, mergeFindings, summarize } from './detect.js';
@@ -28,5 +29,5 @@ export async function scanDir(dir, { maxFileBytes = 20 * 1024 * 1024 } = {}) {
     files++;
   }
   const merged = mergeFindings(findings);
-  return { dir, files, sourceMapsPublic: sourceMaps, summary: summarize(merged), findings: merged };
+  return withFixes({ dir, files, sourceMapsPublic: sourceMaps, summary: summarize(merged), findings: merged });
 }
