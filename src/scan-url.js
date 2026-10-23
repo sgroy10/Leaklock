@@ -71,6 +71,25 @@ async function get(url, opts, budget) {
   throw new Error('Too many redirects.');
 }
 
+// Second-level labels used under country TLDs (example.co.in, example.com.au, example.co.uk).
+const SLD = new Set(['co', 'com', 'net', 'org', 'gov', 'edu', 'ac', 'ltd', 'plc', 'nic', 'gen', 'firm', 'ind', 'res', 'ne', 'or', 'go']);
+// Shared hosting suffixes: each subdomain is a different owner.
+const SHARED = /\.(lovable\.app|lovableproject\.com|bolt\.host|netlify\.app|vercel\.app|pages\.dev|workers\.dev|github\.io|web\.app|firebaseapp\.com|up\.railway\.app|onrender\.com|herokuapp\.com|replit\.app|repl\.co|glitch\.me|surge\.sh|framer\.website|webflow\.io|wixsite\.com|azurewebsites\.net|amplifyapp\.com|fly\.dev|deno\.dev|stackblitz\.io|v0\.dev|vusercontent\.net)$/i;
+
+/** The domain a site owner controls: myapp.lovable.app, shop.example.co.in -> example.co.in. */
+export function registrableDomain(host) {
+  host = host.toLowerCase().replace(/\.$/, '');
+  if (isIP(host)) return host;
+  if (SHARED.test(host)) return host;
+  const p = host.split('.');
+  if (p.length <= 2) return host;
+  const n = p.length;
+  return SLD.has(p[n - 2]) && p[n - 1].length === 2 ? p.slice(-3).join('.') : p.slice(-2).join('.');
+}
+
+// Third-party scripts a site embeds; any keys inside belong to the vendor, not the site.
+const THIRD_PARTY = /(^|\.)(google-analytics\.com|googletagmanager\.com|googlesyndication\.com|doubleclick\.net|gstatic\.com|google\.com|recaptcha\.net|facebook\.net|connect\.facebook\.net|hotjar\.com|clarity\.ms|segment\.com|segment\.io|mixpanel\.com|amplitude\.com|intercom\.io|intercomcdn\.com|crisp\.chat|tawk\.to|hubspot\.com|hs-scripts\.com|hsforms\.net|stripe\.com|js\.stripe\.com|paypal\.com|razorpay\.com|cloudflareinsights\.com|challenges\.cloudflare\.com|sentry-cdn\.com|browser\.sentry-cdn\.com|posthog\.com|plausible\.io|youtube\.com|vimeo\.com|twitter\.com|x\.com|linkedin\.com|licdn\.com|tiktok\.com|calendly\.com|typeform\.com|zdassets\.com|zendesk\.com|onesignal\.com|cookiebot\.com|cookielaw\.org|onetrust\.com|jsdelivr\.net|unpkg\.com|cdnjs\.cloudflare\.com|gpteng\.co|lovable\.dev)$/i;
+
 /** Script and preload URLs referenced by an HTML page. */
 export function extractAssetUrls(html, base) {
   const out = new Set();
@@ -99,6 +118,15 @@ export function extractJsRefs(js, base) {
   while ((m = re2.exec(js))) {
     try { out.add(new URL(m[1].startsWith('assets/') ? '/' + m[1] : m[1], base).href); } catch {}
   }
+  // Next.js and webpack chunk paths.
+  const re3 = /["'`](\/?_next\/static\/[A-Za-z0-9_\/.\-\[\]%]+?\.js)["'`]/g;
+  while ((m = re3.exec(js))) {
+    try { out.add(new URL(m[1].startsWith('/') ? m[1] : '/' + m[1], base).href); } catch {}
+  }
+  const re4 = /["'`]((?:\/|\.\/)?(?:static\/js|js|chunks|_app\/immutable|build)\/[A-Za-z0-9_\/.\-]+?\.m?js)["'`]/g;
+  while ((m = re4.exec(js))) {
+    try { out.add(new URL(m[1], base).href); } catch {}
+  }
   const map = js.match(/\/\/[#@]\s*sourceMappingURL=([^\s'"]+)\s*$/m);
   const maps = [];
   if (map && !map[1].startsWith('data:')) {
@@ -125,15 +153,16 @@ export async function scanUrl(input, options = {}) {
   const page = await get(target.href, opts, budget);
   if (!page.text) throw new Error(`The site answered with status ${page.status}.`);
   const origin = new URL(page.url);
-  const sameSite = (href) => {
-    const h = new URL(href).hostname;
-    const root = origin.hostname.split('.').slice(-2).join('.');
-    return h === origin.hostname || h.endsWith('.' + root);
-  };
-
+  const root = registrableDomain(origin.hostname);
+  // A page's own <script> tags are followed on any host except well-known third-party
+  // trackers/widgets (their keys are not the site owner's). Chunks those scripts import
+  // are followed on the same registrable domain or the script's own host (CDNs).
+  const ownedHost = (h) => h === origin.hostname || registrableDomain(h) === root;
+  const sameSite = (href) => ownedHost(new URL(href).hostname);
+  const pageScriptOk = (href) => !THIRD_PARTY.test(new URL(href).hostname);
   const findings = scanText(page.text, { file: new URL(page.url).pathname || '/' });
   const files = [{ url: page.url, kind: 'html', bytes: page.text.length }];
-  const queue = extractAssetUrls(page.text, page.url).filter(sameSite).map((u) => ({ url: u, kind: 'js' }));
+  const queue = extractAssetUrls(page.text, page.url).filter(pageScriptOk).map((u) => ({ url: u, kind: 'js' }));
   const seen = new Set([page.url, ...queue.map((q) => q.url)]);
   const sourceMaps = [];
   const skipped = [];
@@ -155,11 +184,13 @@ export async function scanUrl(input, options = {}) {
         continue;
       }
       const refs = extractJsRefs(text, url);
+      const fromHost = new URL(url).hostname;
+      const okChild = (u) => sameSite(u) || new URL(u).hostname === fromHost;
       for (const u of refs.scripts) {
-        if (!seen.has(u) && sameSite(u)) { seen.add(u); queue.push({ url: u, kind: 'js' }); }
+        if (!seen.has(u) && okChild(u)) { seen.add(u); queue.push({ url: u, kind: 'js' }); }
       }
       for (const u of refs.maps) {
-        if (!seen.has(u) && sameSite(u)) { seen.add(u); queue.push({ url: u, kind: 'map' }); }
+        if (!seen.has(u) && okChild(u)) { seen.add(u); queue.push({ url: u, kind: 'map' }); }
       }
     }
   }
