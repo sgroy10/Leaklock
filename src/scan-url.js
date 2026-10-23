@@ -1,3 +1,4 @@
+import { withFixes } from './fix.js';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import { scanText, mergeFindings, summarize } from './detect.js';
@@ -196,7 +197,7 @@ export async function scanUrl(input, options = {}) {
   }
 
   const merged = mergeFindings(findings);
-  return {
+  return withFixes({
     url: page.url,
     scannedAt: new Date().toISOString(),
     ms: Date.now() - started,
@@ -207,5 +208,5 @@ export async function scanUrl(input, options = {}) {
     hitFileLimit: queue.length > 0,
     summary: summarize(merged),
     findings: merged,
-  };
+  });
 }
