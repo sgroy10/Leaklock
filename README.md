@@ -19,7 +19,7 @@
 ---
 
 ```bash
-npx leaklock scan yourapp.com
+npx github:sgroy10/leaklock scan yourapp.com
 ```
 
 ```
@@ -87,11 +87,11 @@ While running the study we found and fixed five false-alarm patterns (form place
 **On your machine** (Node 18+):
 
 ```bash
-npx leaklock scan yourapp.com          # a live site, any host
-npx leaklock scan dist/                # your build folder
-npx leaklock scan dist/ --fix          # with step-by-step fixes and an AI-builder prompt
-npx leaklock scan dist/ --json         # machine-readable output
-npx leaklock scan dist/ --fail-on=secret   # exit 1 if a secret is found (for CI)
+npx github:sgroy10/leaklock scan yourapp.com          # a live site, any host
+npx github:sgroy10/leaklock scan dist/                # your build folder
+npx github:sgroy10/leaklock scan dist/ --fix          # with step-by-step fixes and an AI-builder prompt
+npx github:sgroy10/leaklock scan dist/ --json         # machine-readable output
+npx github:sgroy10/leaklock scan dist/ --fail-on=secret   # exit 1 if a secret is found (for CI)
 ```
 
 **From source:**
