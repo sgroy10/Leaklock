@@ -117,3 +117,22 @@ test('generic: ignores public search keys, ids, URLs and class names', () => {
     gtag("config","G-B02DKTPWW5");`;
   assert.equal(scanText(bundle).length, 0, JSON.stringify(scanText(bundle)));
 });
+
+test('no false alarms from real-world patterns found in the study', () => {
+  // A form placeholder showing the shape of a service-account file is not a key.
+  assert.equal(one('placeholder:`{"private_key": "-----BEGIN PRIVATE KEY-----\\\\n..."}`').length, 0);
+  // Shopify Storefront tokens are public by design.
+  assert.equal(one('fetch("https://shop.myshopify.com/api/2024-01/graphql.json",{headers:{"X-Shopify-Storefront-Access-Token":"cd19f0a7b3e24c5d8e6f1a2b3c4d4b4f"}})').filter((f) => f.severity !== 'safe').length, 0);
+  // A Supabase anon JWT passed as ?apikey= is the normal Supabase pattern.
+  const anon = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.' + Buffer.from(JSON.stringify({ iss: 'supabase', ref: 'abcdefghijklmnop', role: 'anon' })).toString('base64url') + '.c2lnbmF0dXJlc2lnbmF0dXJlc2lnbmF0dXJl';
+  assert.equal(one(`const u="https://abcdefghijklmnop.supabase.co/rest/v1/items?apikey=${anon}";`).filter((f) => f.severity !== 'safe').length, 0);
+  // A Google Photos share link is not an API credential.
+  assert.equal(one('const a="https://photos.google.com/share/AF1QipM6zv3X8?key=ZGQ1a2V5c2hhcmVsaW5rMTIzNDU2Nzg5";').filter((f) => f.severity !== 'safe').length, 0);
+});
+
+test('Storefront tokens resolved through variables and Supabase signed URLs are not flagged', () => {
+  const sf = 'const O="shop.myshopify.com",E="de4e0a7b3e24c5d8e6f1a2b3c4d47d49",A=`https://${O}/api/2024-01/graphql.json`;' + ' '.repeat(50) + 'async function g(){return fetch(A,{method:"POST",headers:{"Content-Type":"application/json","X-Shopify-Storefront-Access-Token":E}})}';
+  assert.equal(one(sf).filter((f) => f.severity !== 'safe').length, 0);
+  const signed = 'const u="https://abcdefghijklmnop.supabase.co/storage/v1/object/sign/img/a.png?token=eyJraWQiOiJzdG9yYWdlLXVybC1zaWduaW5nLWtleSJ9.eyJ1cmwiOiJpbWcvYS5wbmcifQ.c2lnbmF0dXJlc2ln";';
+  assert.equal(one(signed).filter((f) => f.severity !== 'safe').length, 0);
+});
