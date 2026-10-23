@@ -20,7 +20,8 @@ function plausibleSecret(v) {
   if (v.length < 20 || v.length > 256) return false;
   if (PUBLIC_PREFIX.test(v) || NOT_SECRET.test(v)) return false;
   if ((v.match(/[0-9]/g) || []).length < 3 || !/[A-Za-z]/.test(v)) return false;
-  if (/^[A-Z]?[a-z]+(?:[A-Z][a-z0-9]+|[_-][A-Za-z0-9]+){2,}$/.test(v)) return false; // identifiers like PrimerNav_Item_4a
+  // identifiers like PrimerNav_Item_4a, unless a segment is clearly random (keys like vx_cOV1UNMbm-TbruXA)
+  if (/^[A-Z]?[a-z]+(?:[A-Z][a-z0-9]+|[_-][A-Za-z0-9]+){2,}$/.test(v) && !v.split(/[_-]/).some((seg) => seg.length >= 10 && /[A-Z]{2}/.test(seg) && /[a-z]/.test(seg))) return false;
   if (/\s/.test(v)) return false;
   if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)) return false; // UUIDs: usually ids, not secrets
   return entropy(v) >= 3.2;
