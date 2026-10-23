@@ -86,11 +86,28 @@ export function genericCandidates(text) {
     // Algolia search-only keys are public by design.
     const ctx = text.slice(Math.max(0, index - 250), index + 250);
     if (/algolia|indexName|appId\s*:/i.test(ctx)) return;
+    // Public-by-design tokens sent the normal way: Shopify Storefront tokens, Supabase anon JWTs.
+    if (/storefront/i.test(ctx) || /storefront/i.test(text.slice(Math.max(0, usageIndex - 400), usageIndex + 400))) return;
+    if (/^AIza/.test(value)) return; // Google keys are judged by the Google rule, with context
+    if (/^eyJ/.test(value)) {
+      try {
+        const payload = JSON.parse(Buffer.from(value.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'), 'base64').toString('utf8'));
+        if (['anon', 'authenticated'].includes(payload.role)) return;
+      } catch {}
+    }
     if (severity === 'secret' && why === 'sent in an API-key header' && !/headers/i.test(text.slice(Math.max(0, usageIndex - 400), usageIndex))) {
       severity = 'review';
       why = 'stored in an API-key field';
     }
     const h = (usageIndex != null && requestHost(text, usageIndex)) || nearbyHost(text, usageIndex ?? index) || nearbyHost(text, index);
+    if (why === 'sent in a URL query string' && h) {
+      // Share links, embeds and ad tags carry ?key= values that are not API credentials.
+      if (/(^|\.)(photos\.google\.com|photos\.app\.goo\.gl|docs\.google\.com|drive\.google\.com|youtube\.com|google\.com|maps\.google\.com)$/.test(h.host)) return;
+      if (/(cpm|adsterra|propeller|monetag|adserver|doubleclick|highperformanceformat|effectivegate|popads|adcash)/i.test(h.host)) return;
+      // Supabase Storage signed URLs carry a scoped, expiring JWT in ?token=.
+      if (/supabase\.(co|in)$/.test(h.host) && /^eyJ/.test(value)) return;
+      if (/githubusercontent\.com$/.test(h.host)) { severity = 'review'; why = 'a short-lived raw-file token in a URL'; }
+    }
     const provider = h ? `${h.domain} API key` : 'Unknown API key';
     out.push({ value, index, severity, why, provider, host: h?.host });
   };
