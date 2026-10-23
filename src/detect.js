@@ -1,5 +1,9 @@
 import { createHash } from 'node:crypto';
 import { RULES, SEVERITY_ORDER } from './rules.js';
+import { entropy } from './entropy.js';
+import { genericCandidates } from './generic.js';
+
+export { entropy };
 
 /** Show the first 4 and last 4 characters only: "sk-p…9xQz". */
 export function mask(value) {
@@ -10,18 +14,6 @@ export function mask(value) {
 /** Short, non-reversible id so the same key found in two files is reported once. */
 export function fingerprint(value) {
   return createHash('sha256').update(value).digest('hex').slice(0, 12);
-}
-
-/** Shannon entropy in bits per character. */
-export function entropy(s) {
-  const counts = new Map();
-  for (const ch of s) counts.set(ch, (counts.get(ch) || 0) + 1);
-  let h = 0;
-  for (const n of counts.values()) {
-    const p = n / s.length;
-    h -= p * Math.log2(p);
-  }
-  return h;
 }
 
 function decodeJwtPayload(token) {
@@ -162,6 +154,54 @@ export function scanText(text, opts = {}) {
       if (opts.includeValue) f.value = value;
       findings.push(f);
     }
+  }
+  // Generic pass: keys for any API, found by how the code uses them.
+  if (opts.generic !== false) {
+    const seenValues = new Map();
+    const cands = genericCandidates(text);
+    // Name each key by the API it is sent to most often.
+    const votes = new Map();
+    for (const c of cands) {
+      if (c.provider === 'Unknown API key') continue;
+      const v = votes.get(c.value) || new Map();
+      v.set(c.provider, (v.get(c.provider) || 0) + (c.severity === 'secret' ? 2 : 1));
+      votes.set(c.value, v);
+    }
+    for (const c of cands) {
+      const v = votes.get(c.value);
+      if (v) c.provider = [...v.entries()].sort((a, b) => b[1] - a[1]).slice(0, 2).map(([p]) => p.replace(/ API key$/, '')).join(' / ') + ' API key';
+    }
+    for (const c of cands) {
+      const end = c.index + c.value.length;
+      if (taken.some(([s, e]) => c.index < e && end > s)) continue;
+      if (looksFake(c.value)) continue;
+      const prev = seenValues.get(c.value);
+      if (prev && SEVERITY_ORDER[prev.severity] <= SEVERITY_ORDER[c.severity]) continue;
+      if (prev) findings.splice(findings.indexOf(prev), 1);
+      const f = {
+        rule: 'generic',
+        provider: c.provider,
+        severity: c.severity,
+        masked: mask(c.value),
+        fingerprint: fingerprint(c.value),
+        file,
+        ...lineCol(text, c.index),
+        advice: c.severity === 'secret'
+          ? `A secret key ${c.why}${c.host ? ` to ${c.host}` : ''}. Anyone can copy it from your site and call that API as you. Rotate it in that provider's dashboard and move the call to a server.`
+          : `Looks like a secret ${c.why}. If this key is not meant to be public, rotate it and move it to a server.`,
+      };
+      if (opts.includeValue) f.value = c.value;
+      seenValues.set(c.value, f);
+      findings.push(f);
+    }
+    // Same key found several times in one file: keep one.
+    const byFp = new Map();
+    for (const f of findings) {
+      const k = f.fingerprint;
+      if (!byFp.has(k) || SEVERITY_ORDER[f.severity] < SEVERITY_ORDER[byFp.get(k).severity]) byFp.set(k, f);
+    }
+    findings.length = 0;
+    findings.push(...byFp.values());
   }
   return findings.sort((a, b) => SEVERITY_ORDER[a.severity] - SEVERITY_ORDER[b.severity] || a.line - b.line);
 }
