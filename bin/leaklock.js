@@ -6,6 +6,7 @@ import { scanDir } from '../src/scan-dir.js';
 const args = process.argv.slice(2);
 const cmd = args[0];
 const json = args.includes('--json');
+const showFix = args.includes('--fix');
 const target = args.filter((a) => !a.startsWith('--'))[1];
 
 const C = process.stdout.isTTY && !json
@@ -25,7 +26,8 @@ function help() {
 Usage:
   leaklock scan <url>        scan a live site (HTML, JS bundles, source maps)
   leaklock scan <dir>        scan a build folder, e.g. dist/
-  options: --json            machine-readable output
+  options: --fix             show how to fix each leak, with a prompt for your AI builder
+           --json            machine-readable output
            --fail-on=secret  exit 1 if anything at or above this level is found
                              (critical | secret | review). Default: secret
 
@@ -44,14 +46,21 @@ function print(r) {
     console.log(`         ${C.dim}in ${f.files.slice(0, 3).join(', ')}${f.files.length > 3 ? ` +${f.files.length - 3} more` : ''}${C.reset}`);
     if (f.advice) console.log(`         ${f.advice}`);
     if (f.rotate && f.severity !== 'safe') console.log(`         ${C.dim}Rotate: ${f.rotate}${C.reset}`);
+    if (f.fix && showFix) {
+      console.log(`\n         ${C.bold}How to fix${C.reset}`);
+      f.fix.steps.forEach((st, i) => console.log(`         ${i + 1}. ${st}`));
+      console.log(`\n         ${C.bold}Paste this into Lovable, Bolt, Cursor or your AI builder:${C.reset}`);
+      console.log(f.fix.prompt.split('\n').map((l) => `         ${C.dim}│${C.reset} ${l}`).join('\n') + '\n');
+    }
   }
   if (r.sourceMapsPublic?.length) {
     console.log(`\n${C.yellow}Note:${C.reset} ${r.sourceMapsPublic.length} source map(s) are public, so your original source code is readable too.`);
   }
   const s = r.summary;
+  if (!showFix && r.findings.some((f) => f.fix)) console.log(`\n${C.dim}Add --fix to get step-by-step fixes and a prompt to paste into your AI builder.${C.reset}`);
   console.log(`\n${s.critical} critical · ${s.secret} secret · ${s.review} to review · ${s.safe} safe (public by design)`);
   if (s.critical + s.secret > 0) {
-    console.log(`\n${C.bold}A key that was public is burned.${C.reset} Rotate it first, then keep the new one off the browser.`);
+    console.log(`\n${C.bold}Anyone can copy these keys from your site.${C.reset} Move the calls to a server, and consider rotating keys that were public.`);
   }
 }
 
