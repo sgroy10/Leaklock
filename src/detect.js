@@ -186,6 +186,7 @@ export function scanText(text, opts = {}) {
         fingerprint: fingerprint(c.value),
         file,
         ...lineCol(text, c.index),
+        ...(c.host ? { host: c.host } : {}),
         advice: c.severity === 'secret'
           ? `A secret key ${c.why}${c.host ? ` to ${c.host}` : ''}. Anyone can copy it from your site and call that API as you. Rotate it in that provider's dashboard and move the call to a server.`
           : `Looks like a secret ${c.why}. If this key is not meant to be public, rotate it and move it to a server.`,
