@@ -30,8 +30,9 @@
   .pill{display:inline-flex;gap:8px;align-items:center;font:600 12px var(--mono);letter-spacing:.04em;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:#fff}
   .pill b{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px var(--red2);animation:pulse 2s infinite}
   @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(255,77,46,.08)}}
-  h1{font-size:clamp(40px,6.2vw,74px);line-height:.98;letter-spacing:-.045em;margin:22px 0 18px;font-weight:800}
+  h1{text-wrap:balance;font-size:clamp(40px,6.2vw,74px);line-height:.98;letter-spacing:-.045em;margin:22px 0 18px;font-weight:800}
   h1 em{font-style:normal;color:var(--red);position:relative}
+  p{text-wrap:pretty}
   .lede{color:var(--dim);font-size:19px;max-width:540px;margin:0 0 30px}
   form{display:flex;gap:8px;background:#fff;border:1.5px solid var(--ink);border-radius:16px;padding:7px;max-width:560px;box-shadow:0 18px 50px -20px rgba(11,11,15,.35),0 4px 0 var(--ink)}
   input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--ink);font:17px var(--mono);padding:12px}
@@ -41,7 +42,7 @@
   .go:disabled{opacity:.6;cursor:wait}
   .hint{color:var(--faint);font-size:13px;margin:12px 4px 0}
   .stage{position:relative;height:560px}
-  #lock{position:absolute;inset:-40px -60px -40px -40px;width:calc(100% + 100px);height:calc(100% + 80px)}
+  #lock{position:absolute;inset:0;width:100%;height:100%}
   .tag{position:absolute;font:600 12px var(--mono);background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 11px;box-shadow:0 12px 30px -14px rgba(0,0,0,.25);white-space:nowrap;pointer-events:none;transition:opacity .4s}
   .tag s{text-decoration:none;color:var(--red)}
   .t1{left:2%;top:16%;animation:float 6s ease-in-out infinite}
@@ -81,13 +82,14 @@
   .fix li{margin:4px 0}
   .prompt{position:relative;background:var(--ink);color:#e9e9ef;border-radius:12px;padding:16px 16px 16px;font:13px/1.6 var(--mono);white-space:pre-wrap}
   .prompt .lbl{display:block;color:#8d8d9a;margin-bottom:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .copy.done{background:var(--green);color:#fff}
   .copy{position:absolute;top:10px;right:10px;background:#fff;color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font:600 12px var(--mono)}
   .note{font-size:14px;color:#5a4300;background:var(--amber2);border-radius:12px;padding:10px 14px;margin:14px 0}
   .share{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
   .share a{font-size:14px;text-decoration:none;border:1px solid var(--line);padding:9px 15px;border-radius:999px;color:var(--ink)}
   .share a.s{background:var(--ink);color:#fff;border-color:var(--ink)}
 
-  section{padding:90px 0 10px}
+  section{padding:90px 0 10px;scroll-margin-top:24px}
   .eyebrow{font:700 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
   h3{font-size:clamp(28px,4vw,44px);letter-spacing:-.035em;line-height:1.05;margin:10px 0 14px}
   .sub{color:var(--dim);font-size:18px;max-width:640px;margin:0 0 34px}
@@ -141,9 +143,6 @@
     </div>
     <div class="stage" aria-hidden="true">
       <canvas id="lock"></canvas>
-      <div class="tag t1">Authorization: Bearer <s>d41f…a07c</s></div>
-      <div class="tag t2">"x-api-key": <s>Qm7x…Lp2v</s></div>
-      <div class="tag t3">?key=<s>AIza…Qm4k</s></div>
     </div>
   </div>
 
@@ -256,7 +255,7 @@ npx leaklock scan dist/ --fail-on=secret</pre>
   }
   // Leaking key fragments orbiting the lock.
   const frags = ['sk-p…R2dw', 'Bearer d41f…', 'x-api-key', '?key=AIza…', 'service_role', 'Qm7x…Lp2v', 'sk_live_…', 'ghp_…'];
-  const orb = frags.map((s, i) => ({ s, a: i / frags.length * Math.PI * 2, y: (Math.random() - .5) * 1.8, rad: 2.2 + Math.random() * .5, sp: .15 + Math.random() * .12 }));
+  const orb = frags.map((s, i) => ({ s, a: i / frags.length * Math.PI * 2, y: (Math.random() - .5) * 1.8, rad: 1.9 + Math.random() * .35, sp: .15 + Math.random() * .12 }));
 
   let rotY = .5, rotX = -.18, mx = 0, my = 0, open = .45, openT = .45, speed = .28, speedT = .28, tint = [11, 11, 15], tintT = [11, 11, 15], accent = [255, 77, 46];
   addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; });
@@ -270,8 +269,8 @@ npx leaklock scan dist/ --fail-on=secret</pre>
     const cy = Math.cos(rotY), sy = Math.sin(rotY), cx = Math.cos(rotX), sx = Math.sin(rotX);
     let X = x * cy - z * sy, Z = x * sy + z * cy;
     let Y = y * cx - Z * sx; Z = y * sx + Z * cx;
-    const d = 5.2, s = Math.min(W, H) * .2 * d / (d + Z);
-    return [W / 2 + X * s, H / 2 + 30 + Y * -s, Z];
+    const d = 5.2, s = Math.min(W, H) * .17 * d / (d + Z);
+    return [W / 2 + X * s, H / 2 + 55 + Y * -s, Z];
   }
   let last = performance.now();
   function frame(now) {
@@ -282,7 +281,7 @@ npx leaklock scan dist/ --fail-on=secret</pre>
     const ry = rotY + mx * .8; const saved = rotY; rotY = ry;
     ctx.clearRect(0, 0, W, H);
     // soft floor shadow
-    const g = ctx.createRadialGradient(W / 2, H / 2 + 30 + Math.min(W, H) * .3, 5, W / 2, H / 2 + 30 + Math.min(W, H) * .3, Math.min(W, H) * .35);
+    const g = ctx.createRadialGradient(W / 2, H / 2 + 55 + Math.min(W, H) * .3, 5, W / 2, H / 2 + 55 + Math.min(W, H) * .3, Math.min(W, H) * .35);
     g.addColorStop(0, 'rgba(11,11,15,.12)'); g.addColorStop(1, 'rgba(11,11,15,0)');
     ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
     const pts = [];
@@ -356,8 +355,8 @@ function render(r) {
   h += `<div class="share"><a class="s" target="_blank" rel="noopener" href="https://github.com/sgroy10/leaklock">★ Star LeakLock</a><a target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(location.origin)}">Share on X</a><a target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(location.origin)}">Share on LinkedIn</a></div></div>`;
   $('#out').innerHTML = h;
   $('#out').querySelectorAll('.copy').forEach((btn) => btn.addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(r.findings[btn.dataset.i].fix.prompt); btn.textContent = 'Copied'; } catch { btn.textContent = 'Select & copy'; }
-    setTimeout(() => (btn.textContent = 'Copy'), 1800);
+    try { await navigator.clipboard.writeText(r.findings[btn.dataset.i].fix.prompt); btn.textContent = '✓ Copied'; btn.classList.add('done'); } catch { btn.textContent = 'Select & copy'; }
+    setTimeout(() => { btn.textContent = 'Copy'; btn.classList.remove('done'); }, 1800);
   }));
   bad ? LL3D.leak() : LL3D.clean();
 }
