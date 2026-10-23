@@ -95,3 +95,25 @@ test('mergeFindings dedupes the same key across files', () => {
   assert.equal(m.length, 1);
   assert.deepEqual(m[0].files, ['a.js', 'a.js.map']);
 });
+
+test('generic: catches a key for an unknown API by how it is used', () => {
+  const k1 = 'a7b91c' + 'e04f2d8b3a6c9e1f5d7b2a4e9e24';
+  const k2 = 'Zq8' + 'Lm3Np7Rt2Vx9Bc4Df6Gh1Jk5';
+  const bundle = `const B="${k1}",X="https://api.newthing.ai/api/v1";async function go(){const D=await fetch(\`\${X}/jobs/create\`,{method:"POST",headers:{"Content-Type":"application/json",Authorization:\`Bearer \${B}\`}})}
+    const JC="${k2}";async function seg(f){await fetch("https://image-api.otherapi.com/v2/edit",{method:"POST",headers:{"x-api-key":JC},body:f})}`;
+  const fs = scanText(bundle);
+  assert.equal(fs.length, 2, JSON.stringify(fs));
+  const a = fs.find((f) => f.masked.startsWith('a7b9'));
+  assert.equal(a.severity, 'secret');
+  assert.equal(a.provider, 'newthing.ai API key');
+  const b = fs.find((f) => f.masked.startsWith('Zq8'));
+  assert.equal(b.severity, 'secret');
+  assert.equal(b.provider, 'otherapi.com API key');
+});
+
+test('generic: ignores public search keys, ids, URLs and class names', () => {
+  const bundle = `algolia:{appId:"1FCF9AYYAT",apiKey:"1b7ad4e1c89e645e351e59d40544eda1",indexName:"beta"}
+    const cls="flex items-center justify-between gap-3";const u="https://cdn.example.com/a/b/c/d.png";const id="550e8400-e29b-41d4-a716-446655440000";
+    gtag("config","G-B02DKTPWW5");`;
+  assert.equal(scanText(bundle).length, 0, JSON.stringify(scanText(bundle)));
+});
