@@ -6,6 +6,15 @@ const SERVER_ONLY = {
   secret: true,
 };
 
+function article(word) {
+  return /^[aeiou]/i.test(word) || /^(8|11|18|x[^a-z]|s3|r2)/i.test(word) ? 'an' : 'a';
+}
+
+function keyNoun(f) {
+  const p = f.provider.replace(/ \(project .*\)$/, '');
+  return /(key|token|secret|webhook)s?$/i.test(p) ? p : p + ' API key';
+}
+
 function apiName(f) {
   return f.provider.replace(/ (API key|key|token|secret key|secret).*$/i, '').trim() || 'this API';
 }
@@ -39,7 +48,7 @@ export function fixFor(f) {
       'Republish and scan again to confirm the key is gone.',
       `Recommended: rotate the ${name} key too, since anyone may already have copied it while it was public.`,
     ],
-    prompt: `My app exposes a ${f.provider} in the browser bundle (found in ${where}${f.host ? `, sent to ${f.host}` : ''}). Anyone can copy it. Fix this without changing how the app behaves:\n1. Create a server-side function (use a Supabase Edge Function if this project uses Supabase, otherwise a serverless function on our host) that makes the same ${name} request${f.host ? ` to ${f.host}` : ''}, reading the key from a secret named ${envName}.\n2. Replace the browser's direct call with a call to that function, passing the same inputs and returning the same response shape.\n3. Remove the key from all frontend code, .env files with VITE_ or NEXT_PUBLIC_ prefixes, and constants.\n4. Only allow requests from our own site and add a basic rate limit.\n5. Do not change any UI, routes or other logic. List every file you changed.\nI will set the ${envName} secret myself.`,
+    prompt: `My app exposes ${article(keyNoun(f))} ${keyNoun(f)} in the browser bundle (found in ${where}${f.host ? `, sent to ${f.host}` : ''}). Anyone can copy it. Fix this without changing how the app behaves:\n1. Create a server-side function (use a Supabase Edge Function if this project uses Supabase, otherwise a serverless function on our host) that makes the same ${name} request${f.host ? ` to ${f.host}` : ''}, reading the key from a secret named ${envName}.\n2. Replace the browser's direct call with a call to that function, passing the same inputs and returning the same response shape.\n3. Remove the key from all frontend code, .env files with VITE_ or NEXT_PUBLIC_ prefixes, and constants.\n4. Only allow requests from our own site and add a basic rate limit.\n5. Do not change any UI, routes or other logic. List every file you changed.\nI will set the ${envName} secret myself.`,
   };
 }
 
