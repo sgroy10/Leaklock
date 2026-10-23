@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>LeakLock — Is your app leaking API keys?</title>
-<meta name="description" content="Paste your Lovable, Bolt or Vite app's URL. See which secret API keys anyone can copy from your site in 10 seconds. Free, open source, stores nothing.">
+<meta name="description" content="Paste any website URL: your own domain, Lovable, Bolt, Vercel, Netlify or anywhere. See which secret API keys anyone can copy from your site in 10 seconds. Free, open source, stores nothing.">
 <meta property="og:title" content="Is your app leaking API keys?">
 <meta property="og:description" content="Anyone can press Inspect and copy keys from your site. Check yours in 10 seconds. Free and open source.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Cpath d='M10 14v-3a6 6 0 0 1 12 0v3' stroke='%23ff5c38' stroke-width='3' fill='none'/%3E%3Crect x='8' y='14' width='16' height='12' rx='2' fill='%23ff5c38'/%3E%3C/svg%3E">
@@ -70,10 +70,10 @@
   </header>
 
   <h1>Is your app <em>leaking</em> API keys?</h1>
-  <p class="lede">Anyone can open your site, press Inspect, and copy the OpenAI, Gemini, Stripe or Supabase key inside it. Paste your URL and see what they see.</p>
+  <p class="lede">Anyone can open your site, press Inspect, and copy the OpenAI, Gemini, Stripe or Supabase key inside it. Paste any website address, on your own domain or any host, and see what they see.</p>
 
   <form id="f">
-    <input id="u" name="url" placeholder="myapp.lovable.app" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+    <input id="u" name="url" placeholder="yourapp.com" autocomplete="off" autocapitalize="off" spellcheck="false" required>
     <button id="b" type="submit">Scan</button>
   </form>
   <p class="hint">Reads only the public files your site already sends to every visitor. Keys are shown masked. Nothing is stored.</p>
@@ -83,7 +83,7 @@
   <section>
     <h3>What it checks</h3>
     <div class="grid">
-      <div class="card"><h4>Every file a visitor gets</h4><p>Your HTML, every JavaScript bundle, lazy-loaded chunks, and public source maps.</p></div>
+      <div class="card"><h4>Any site, any host</h4><p>Your own domain or Lovable, Bolt, Vercel, Netlify, Railway. React, Vite, Next.js or plain JS: we read the HTML, every bundle, lazy chunks and public source maps.</p></div>
       <div class="card"><h4>30+ key types</h4><p>OpenAI, Anthropic, Gemini, OpenRouter, Groq, Stripe, Supabase, GitHub, AWS, Slack, Resend, ElevenLabs and more.</p></div>
       <div class="card"><h4>No false alarms</h4><p>Stripe <code>pk_</code>, Supabase anon and Firebase web keys are public by design. We say so instead of scaring you.</p></div>
     </div>
