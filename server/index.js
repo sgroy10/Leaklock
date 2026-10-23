@@ -54,7 +54,7 @@ function send(res, status, body, headers = {}) {
 
 async function handleScan(req, res, url) {
   const target = (url.searchParams.get('url') || '').trim();
-  if (!target || target.length > 500) return send(res, 400, { error: 'Paste your website address, like myapp.lovable.app' });
+  if (!target || target.length > 500) return send(res, 400, { error: 'Paste a website address, like yourapp.com' });
   const key = target.toLowerCase().replace(/^https?:\/\//, '').replace(/\/+$/, '');
   const hit = cache.get(key);
   if (hit && Date.now() - hit.at < CACHE_MS) return send(res, 200, { ...hit.result, cached: true });
