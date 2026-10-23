@@ -3,152 +3,369 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LeakLock — Is your app leaking API keys?</title>
-<meta name="description" content="Paste any website URL: your own domain, Lovable, Bolt, Vercel, Netlify or anywhere. See which secret API keys anyone can copy from your site in 10 seconds. Free, open source, stores nothing.">
+<title>LeakLock: Gitleaks for your live site. Find API keys your app leaks.</title>
+<meta name="description" content="Paste any website. LeakLock reads the JavaScript your site sends every visitor and finds secret API keys, including keys for APIs with no known format. Free, open source, stores nothing.">
 <meta property="og:title" content="Is your app leaking API keys?">
-<meta property="og:description" content="Anyone can press Inspect and copy keys from your site. Check yours in 10 seconds. Free and open source.">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Cpath d='M10 14v-3a6 6 0 0 1 12 0v3' stroke='%23ff5c38' stroke-width='3' fill='none'/%3E%3Crect x='8' y='14' width='16' height='12' rx='2' fill='%23ff5c38'/%3E%3C/svg%3E">
+<meta property="og:description" content="Anyone can press Inspect and copy keys from your site. LeakLock finds them in seconds, even unknown ones, and tells you exactly how to fix it. Free and open source.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230b0b0f'/%3E%3Cpath d='M10 14v-3a6 6 0 0 1 12 0v3' stroke='%23ff4d2e' stroke-width='3' fill='none'/%3E%3Crect x='8' y='14' width='16' height='12' rx='3' fill='%23ff4d2e'/%3E%3C/svg%3E">
 <style>
-  :root { --bg:#0c0c0d; --panel:#151517; --line:#26262a; --text:#ededee; --dim:#9a9aa2; --red:#ff5c38; --amber:#f5b83d; --green:#4fd18b; --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
-  * { box-sizing:border-box; }
-  body { margin:0; background:var(--bg); color:var(--text); font: 16px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, sans-serif; }
-  a { color:inherit; }
-  .wrap { max-width:820px; margin:0 auto; padding:0 20px; }
-  header { display:flex; justify-content:space-between; align-items:center; padding:22px 0; }
-  .logo { font-weight:700; letter-spacing:-.02em; display:flex; gap:10px; align-items:center; text-decoration:none; }
-  .logo b { color:var(--red); }
-  .gh { font-size:14px; color:var(--dim); text-decoration:none; border:1px solid var(--line); padding:6px 12px; border-radius:999px; }
-  .gh:hover { color:var(--text); }
-  h1 { font-size:clamp(34px,6vw,58px); line-height:1.05; letter-spacing:-.035em; margin:56px 0 16px; }
-  h1 em { font-style:normal; color:var(--red); }
-  .lede { color:var(--dim); font-size:19px; max-width:620px; margin:0 0 32px; }
-  form { display:flex; gap:10px; background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:8px; }
-  input { flex:1; min-width:0; background:transparent; border:0; outline:0; color:var(--text); font:17px var(--mono); padding:12px; }
-  button { background:var(--red); color:#140804; border:0; border-radius:10px; font-weight:700; font-size:16px; padding:0 22px; cursor:pointer; }
-  button:disabled { opacity:.6; cursor:wait; }
-  .hint { color:var(--dim); font-size:13px; margin:10px 4px 0; }
-  #out { margin:36px 0 10px; }
-  .status { color:var(--dim); font-family:var(--mono); font-size:14px; }
-  .verdict { border-radius:14px; padding:22px; margin-bottom:16px; border:1px solid var(--line); background:var(--panel); }
-  .verdict h2 { margin:0 0 6px; font-size:24px; letter-spacing:-.02em; }
-  .verdict p { margin:0; color:var(--dim); }
-  .verdict.bad { border-color:#5a2117; background:linear-gradient(180deg,#2a120c,#151517); }
-  .verdict.bad h2 { color:var(--red); }
-  .verdict.ok h2 { color:var(--green); }
-  .finding { border:1px solid var(--line); border-radius:12px; padding:16px 18px; margin:10px 0; background:var(--panel); }
-  .row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
-  .chip { font:700 11px var(--mono); letter-spacing:.06em; padding:3px 8px; border-radius:6px; text-transform:uppercase; }
-  .critical { background:var(--red); color:#140804; }
-  .secret { background:#3a1810; color:var(--red); }
-  .review { background:#3a2c0d; color:var(--amber); }
-  .safe { background:#10301f; color:var(--green); }
-  .prov { font-weight:650; }
-  .key { font-family:var(--mono); color:var(--dim); font-size:14px; }
-  .files { font:13px var(--mono); color:var(--dim); margin-top:6px; word-break:break-all; }
-  .advice { margin:8px 0 0; font-size:15px; }
-  .rot { display:inline-block; margin-top:8px; font-size:14px; color:var(--red); }
-  .note { font-size:14px; color:var(--dim); border-left:3px solid var(--amber); padding:6px 12px; margin:14px 0; }
-  .share { margin-top:18px; display:flex; gap:10px; flex-wrap:wrap; }
-  .share a { font-size:14px; text-decoration:none; border:1px solid var(--line); padding:8px 14px; border-radius:999px; color:var(--dim); }
-  .share a:hover { color:var(--text); }
-  section { border-top:1px solid var(--line); margin-top:64px; padding-top:40px; }
-  section h3 { font-size:22px; letter-spacing:-.02em; margin:0 0 14px; }
-  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:14px; }
-  .card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:18px; }
-  .card h4 { margin:0 0 6px; font-size:16px; }
-  .card p { margin:0; color:var(--dim); font-size:15px; }
-  pre { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; overflow:auto; font:14px/1.6 var(--mono); color:var(--text); }
-  .flow { font:14px/1.7 var(--mono); color:var(--dim); white-space:pre; overflow:auto; }
-  footer { color:var(--dim); font-size:14px; padding:48px 0 60px; }
+  :root{--bg:#fff;--ink:#0b0b0f;--dim:#5d5d6b;--faint:#9a9aa8;--line:#ececf1;--soft:#f6f6f9;--red:#ff4d2e;--red2:#ffe9e4;--amber:#c98400;--amber2:#fff4dc;--green:#0f9d58;--green2:#e3f6ec;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif;-webkit-font-smoothing:antialiased;overflow-x:hidden}
+  a{color:inherit}
+  code{font-family:var(--mono);font-size:.92em;background:var(--soft);padding:1px 6px;border-radius:6px}
+  .wrap{max-width:1140px;margin:0 auto;padding:0 24px}
+  nav{display:flex;justify-content:space-between;align-items:center;padding:20px 0;position:relative;z-index:3}
+  .logo{font-weight:800;letter-spacing:-.03em;font-size:20px;display:flex;gap:9px;align-items:center;text-decoration:none}
+  .logo i{width:26px;height:26px;border-radius:7px;background:var(--ink);display:grid;place-items:center}
+  .logo b{color:var(--red)}
+  .navr{display:flex;gap:10px;align-items:center}
+  .navr a{font-size:14px;text-decoration:none;color:var(--dim);padding:8px 12px;border-radius:999px}
+  .navr a:hover{color:var(--ink);background:var(--soft)}
+  .navr a.star{color:#fff;background:var(--ink);font-weight:600}
+  .navr a.star:hover{background:#26262e;color:#fff}
+
+  .hero{position:relative;display:grid;grid-template-columns:1.05fr .95fr;gap:24px;align-items:center;min-height:620px;padding:24px 0 40px}
+  .pill{display:inline-flex;gap:8px;align-items:center;font:600 12px var(--mono);letter-spacing:.04em;color:var(--dim);border:1px solid var(--line);border-radius:999px;padding:6px 12px;background:#fff}
+  .pill b{width:7px;height:7px;border-radius:50%;background:var(--red);box-shadow:0 0 0 4px var(--red2);animation:pulse 2s infinite}
+  @keyframes pulse{50%{box-shadow:0 0 0 8px rgba(255,77,46,.08)}}
+  h1{font-size:clamp(40px,6.2vw,74px);line-height:.98;letter-spacing:-.045em;margin:22px 0 18px;font-weight:800}
+  h1 em{font-style:normal;color:var(--red);position:relative}
+  .lede{color:var(--dim);font-size:19px;max-width:540px;margin:0 0 30px}
+  form{display:flex;gap:8px;background:#fff;border:1.5px solid var(--ink);border-radius:16px;padding:7px;max-width:560px;box-shadow:0 18px 50px -20px rgba(11,11,15,.35),0 4px 0 var(--ink)}
+  input{flex:1;min-width:0;background:transparent;border:0;outline:0;color:var(--ink);font:17px var(--mono);padding:12px}
+  button{font:inherit;cursor:pointer}
+  .go{background:var(--red);color:#fff;border:0;border-radius:11px;font-weight:700;font-size:16px;padding:0 24px;transition:transform .15s}
+  .go:hover{transform:translateY(-1px)}
+  .go:disabled{opacity:.6;cursor:wait}
+  .hint{color:var(--faint);font-size:13px;margin:12px 4px 0}
+  .stage{position:relative;height:560px}
+  #lock{position:absolute;inset:-40px -60px -40px -40px;width:calc(100% + 100px);height:calc(100% + 80px)}
+  .tag{position:absolute;font:600 12px var(--mono);background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 11px;box-shadow:0 12px 30px -14px rgba(0,0,0,.25);white-space:nowrap;pointer-events:none;transition:opacity .4s}
+  .tag s{text-decoration:none;color:var(--red)}
+  .t1{left:2%;top:16%;animation:float 6s ease-in-out infinite}
+  .t2{right:0;top:46%;animation:float 7s ease-in-out -2s infinite}
+  .t3{left:10%;bottom:12%;animation:float 8s ease-in-out -4s infinite}
+  @keyframes float{50%{transform:translateY(-12px)}}
+
+  #out{scroll-margin-top:20px}
+  .result{margin:10px 0 0;padding:28px;border:1px solid var(--line);border-radius:22px;background:#fff;box-shadow:0 30px 80px -40px rgba(11,11,15,.3)}
+  .status{color:var(--dim);font:14px var(--mono)}
+  .scanning{display:flex;gap:14px;align-items:center}
+  .bar{flex:1;height:4px;border-radius:4px;background:var(--soft);overflow:hidden}
+  .bar i{display:block;height:100%;width:40%;background:var(--red);border-radius:4px;animation:slide 1.2s ease-in-out infinite}
+  @keyframes slide{0%{transform:translateX(-100%)}100%{transform:translateX(250%)}}
+  .verdict h2{margin:0 0 6px;font-size:30px;letter-spacing:-.03em}
+  .verdict p{margin:0;color:var(--dim)}
+  .verdict.bad h2{color:var(--red)}
+  .verdict.ok h2{color:var(--green)}
+  .finding{border:1px solid var(--line);border-radius:16px;padding:18px 20px;margin:14px 0;transform-style:preserve-3d;transition:transform .25s,box-shadow .25s;background:#fff}
+  .finding:hover{box-shadow:0 18px 40px -24px rgba(0,0,0,.3)}
+  .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+  .chip{font:700 11px var(--mono);letter-spacing:.06em;padding:4px 9px;border-radius:7px;text-transform:uppercase}
+  .critical{background:var(--red);color:#fff}
+  .secret{background:var(--red2);color:var(--red)}
+  .review{background:var(--amber2);color:var(--amber)}
+  .safe{background:var(--green2);color:var(--green)}
+  .prov{font-weight:700}
+  .key{font-family:var(--mono);color:var(--dim);font-size:14px;background:var(--soft);padding:2px 8px;border-radius:6px}
+  .files{font:13px var(--mono);color:var(--faint);margin-top:8px;word-break:break-all}
+  .advice{margin:10px 0 0;font-size:15px;color:#33333d}
+  details.fix{margin-top:14px;border-top:1px dashed var(--line);padding-top:12px}
+  details.fix summary{cursor:pointer;font-weight:700;color:var(--red);list-style:none}
+  details.fix summary::-webkit-details-marker{display:none}
+  details.fix summary:before{content:"→ "}
+  details.fix[open] summary:before{content:"↓ "}
+  .fix ol{margin:10px 0 14px;padding-left:20px;color:#33333d}
+  .fix li{margin:4px 0}
+  .prompt{position:relative;background:var(--ink);color:#e9e9ef;border-radius:12px;padding:16px 16px 16px;font:13px/1.6 var(--mono);white-space:pre-wrap}
+  .prompt .lbl{display:block;color:#8d8d9a;margin-bottom:8px;font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .copy{position:absolute;top:10px;right:10px;background:#fff;color:var(--ink);border:0;border-radius:8px;padding:6px 10px;font:600 12px var(--mono)}
+  .note{font-size:14px;color:#5a4300;background:var(--amber2);border-radius:12px;padding:10px 14px;margin:14px 0}
+  .share{margin-top:20px;display:flex;gap:10px;flex-wrap:wrap}
+  .share a{font-size:14px;text-decoration:none;border:1px solid var(--line);padding:9px 15px;border-radius:999px;color:var(--ink)}
+  .share a.s{background:var(--ink);color:#fff;border-color:var(--ink)}
+
+  section{padding:90px 0 10px}
+  .eyebrow{font:700 12px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--red)}
+  h3{font-size:clamp(28px,4vw,44px);letter-spacing:-.035em;line-height:1.05;margin:10px 0 14px}
+  .sub{color:var(--dim);font-size:18px;max-width:640px;margin:0 0 34px}
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;perspective:1000px}
+  .card{background:#fff;border:1px solid var(--line);border-radius:18px;padding:24px;transform-style:preserve-3d;transition:transform .2s ease-out,box-shadow .2s;will-change:transform}
+  .card:hover{box-shadow:0 30px 60px -30px rgba(11,11,15,.35)}
+  .card .n{font:700 13px var(--mono);color:var(--red)}
+  .card h4{margin:10px 0 8px;font-size:19px;letter-spacing:-.02em}
+  .card p{margin:0;color:var(--dim);font-size:15px}
+  .vs{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .term{background:var(--ink);color:#d9d9e3;border-radius:18px;padding:22px;font:13.5px/1.75 var(--mono);overflow:auto;min-height:250px}
+  .term .h{color:#8d8d9a;display:block;margin-bottom:10px;font-size:12px;letter-spacing:.06em;text-transform:uppercase}
+  .term .r{color:#ff7a5f}.term .g{color:#5fd598}.term .d{color:#777785}
+  .code{background:var(--soft);border:1px solid var(--line);border-radius:16px;padding:20px;font:14px/1.7 var(--mono);overflow:auto;white-space:pre;margin:0}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+  .truth{border-left:3px solid var(--red);padding:4px 0 4px 18px}
+  .truth h4{margin:0 0 6px;font-size:19px}
+  .truth p{margin:0;color:var(--dim)}
+  .cta{margin:90px 0 0;border-radius:28px;background:var(--ink);color:#fff;padding:56px;display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap;position:relative;overflow:hidden}
+  .cta h3{margin:0;color:#fff}
+  .cta p{margin:8px 0 0;color:#a9a9b6}
+  .cta a{background:#fff;color:var(--ink);text-decoration:none;font-weight:700;padding:14px 22px;border-radius:12px;white-space:nowrap}
+  footer{color:var(--faint);font-size:14px;padding:40px 0 60px}
+  .reveal{opacity:0;transform:translateY(24px);transition:opacity .7s,transform .7s}
+  .reveal.in{opacity:1;transform:none}
+  @media (max-width:880px){.hero{grid-template-columns:1fr;min-height:0}.stage{height:360px;order:-1}.grid,.vs,.two{grid-template-columns:1fr}.cta{padding:32px}.navr a:not(.star){display:none}}
+  @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}.reveal{opacity:1;transform:none}}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <header>
-    <a class="logo" href="/">🔒 Leak<b>Lock</b></a>
-    <a class="gh" href="https://github.com/sgroy10/leaklock">★ Star on GitHub</a>
-  </header>
+  <nav>
+    <a class="logo" href="/"><i><svg width="16" height="16" viewBox="0 0 32 32"><path d="M10 14v-3a6 6 0 0 1 12 0v3" stroke="#ff4d2e" stroke-width="3.5" fill="none"/><rect x="7" y="14" width="18" height="13" rx="3" fill="#ff4d2e"/></svg></i>Leak<b>Lock</b></a>
+    <div class="navr">
+      <a href="#unknown">Unknown keys</a>
+      <a href="#ci">CLI &amp; CI</a>
+      <a class="star" href="https://github.com/sgroy10/leaklock">★ Star on GitHub</a>
+    </div>
+  </nav>
 
-  <h1>Is your app <em>leaking</em> API keys?</h1>
-  <p class="lede">Anyone can open your site, press Inspect, and copy the OpenAI, Gemini, Stripe or Supabase key inside it. Paste any website address, on your own domain or any host, and see what they see.</p>
-
-  <form id="f">
-    <input id="u" name="url" placeholder="yourapp.com" autocomplete="off" autocapitalize="off" spellcheck="false" required>
-    <button id="b" type="submit">Scan</button>
-  </form>
-  <p class="hint">Reads only the public files your site already sends to every visitor. Keys are shown masked. Nothing is stored.</p>
+  <div class="hero">
+    <div>
+      <span class="pill"><b></b> FREE · OPEN SOURCE · STORES NOTHING</span>
+      <h1>Your app is <em>leaking</em> API keys. Probably.</h1>
+      <p class="lede">Anyone can open your site, press Inspect, and copy the keys inside. LeakLock reads exactly what your site sends every visitor and finds them, even keys for APIs no scanner has heard of.</p>
+      <form id="f">
+        <input id="u" name="url" placeholder="yourapp.lovable.app" autocomplete="off" autocapitalize="off" spellcheck="false" required>
+        <button class="go" id="b" type="submit">Scan</button>
+      </form>
+      <p class="hint">Works on any site: Lovable, Bolt, Vercel, Netlify or your own domain. Keys are always shown masked.</p>
+    </div>
+    <div class="stage" aria-hidden="true">
+      <canvas id="lock"></canvas>
+      <div class="tag t1">Authorization: Bearer <s>d41f…a07c</s></div>
+      <div class="tag t2">"x-api-key": <s>Qm7x…Lp2v</s></div>
+      <div class="tag t3">?key=<s>AIza…Qm4k</s></div>
+    </div>
+  </div>
 
   <div id="out"></div>
 
-  <section>
-    <h3>What it checks</h3>
-    <div class="grid">
-      <div class="card"><h4>Any site, any host</h4><p>Your own domain or Lovable, Bolt, Vercel, Netlify, Railway. React, Vite, Next.js or plain JS: we read the HTML, every bundle, lazy chunks and public source maps.</p></div>
-      <div class="card"><h4>Any API, not just famous ones</h4><p>30+ known providers by key shape, plus any other API caught by how your code uses the key: Bearer tokens, x-api-key headers, ?key= in URLs. We name the API from where the request goes.</p></div>
-      <div class="card"><h4>No false alarms</h4><p>Stripe <code>pk_</code>, Supabase anon and Firebase web keys are public by design. We say so instead of scaring you.</p></div>
+  <section id="unknown" class="reveal">
+    <span class="eyebrow">The part others miss</span>
+    <h3>Not every key starts with <code style="font-size:.8em">sk-</code></h3>
+    <p class="sub">Pattern scanners only know key formats they've been taught. Plenty of smaller AI and image APIs hand out plain random strings. LeakLock catches a key by how your code <b>uses</b> it, then names the API from where the request goes.</p>
+    <div class="vs">
+      <div class="term"><span class="h">Pattern-only scanner</span>fetch("https://api.kie.ai/v1/jobs", {
+  headers: { Authorization: `Bearer ${e}` }
+})
+<span class="d">// e = "d41f8b…a07c"  (32 hex chars, no prefix)</span>
+
+<span class="g">✓ No secrets found</span>
+<span class="d">  …because it has never seen this format.</span></div>
+      <div class="term"><span class="h">LeakLock</span>fetch("https://api.kie.ai/v1/jobs", {
+  headers: { Authorization: `Bearer ${e}` }
+})
+
+<span class="r">SECRET  kie.ai API key   d41f…a07c</span>
+<span class="d">        sent as a Bearer token to api.kie.ai</span>
+<span class="d">        traced through minified variable `e`</span>
+<span class="g">→ fix steps + a prompt for your AI builder</span></div>
     </div>
   </section>
 
-  <section>
-    <h3>Two hard truths</h3>
+  <section class="reveal">
+    <span class="eyebrow">How it works</span>
+    <h3>See your site the way an attacker does.</h3>
     <div class="grid">
-      <div class="card"><h4>A key in the browser can't be hidden</h4><p>Obfuscation and encryption fail: the key shows in the Network tab the moment it's sent. The only fix is that the real key never reaches the browser.</p></div>
-      <div class="card"><h4>A leaked key is burned</h4><p>If it was ever public, assume it's copied. Create a new key once, then keep it off the browser.</p></div>
+      <div class="card"><span class="n">01</span><h4>Reads what ships</h4><p>The HTML, every JS bundle, lazy-loaded chunks and public source maps. Not your repo: what visitors actually download.</p></div>
+      <div class="card"><span class="n">02</span><h4>Finds any key</h4><p>30+ providers by shape, plus any API by usage: Bearer tokens, API-key headers, <code>?key=</code> in URLs. Minified variables are traced back to their value.</p></div>
+      <div class="card"><span class="n">03</span><h4>Tells you the fix</h4><p>Plain steps, and a ready prompt to paste into Lovable, Bolt or Cursor that moves the call to a server without changing how your app works.</p></div>
+      <div class="card"><span class="n">✓</span><h4>No false alarms</h4><p>Stripe <code>pk_</code>, Supabase anon and Firebase web keys are public by design, and we say so. Supabase JWTs are decoded to tell anon from service_role.</p></div>
+      <div class="card"><span class="n">✓</span><h4>Never shows a full key</h4><p>Everything is masked. The checker stores nothing, rate-limits, and refuses private addresses, so it can't be used to harvest keys.</p></div>
+      <div class="card"><span class="n">✓</span><h4>Zero dependencies</h4><p>One small Node package you can read in an afternoon. MIT licensed.</p></div>
     </div>
   </section>
 
-  <section>
-    <h3>Scan before you publish</h3>
-    <pre>npx leaklock scan dist/          # your build folder
-npx leaklock scan myapp.com      # a live site
-npx leaklock scan dist/ --fail-on=secret   # fail CI if a secret ships</pre>
-    <p class="hint">Zero dependencies. MIT licensed. Your keys never leave your machine.</p>
+  <section id="ci" class="reveal">
+    <span class="eyebrow">For developers</span>
+    <h3>Gitleaks checks your repo.<br>LeakLock checks what you ship.</h3>
+    <p class="sub">A key can be clean in git and still end up in your bundle through a <code>VITE_</code> or <code>NEXT_PUBLIC_</code> variable. Catch it before it goes live.</p>
+    <div class="two">
+      <pre class="code"><span style="color:var(--faint)"># any live site or build folder</span>
+npx leaklock scan myapp.com
+npx leaklock scan dist/ --fix
+
+<span style="color:var(--faint)"># fail CI if a secret ships</span>
+npx leaklock scan dist/ --fail-on=secret</pre>
+      <pre class="code"><span style="color:var(--faint)"># .github/workflows/leaklock.yml</span>
+- run: npm run build
+- uses: sgroy10/leaklock@v1
+  with:
+    target: dist
+    fail-on: secret</pre>
+    </div>
   </section>
 
-  <section>
-    <h3>Coming next: the Shield</h3>
-    <p style="color:var(--dim);max-width:640px">One install, no code changes. LeakLock swaps the real key in your build for a useless token and routes calls through a tiny proxy in <b>your own</b> Cloudflare or Supabase account, with origin checks, rate limits and a daily cap.</p>
-    <div class="flow">today        browser ──(real key)──► api.openai.com      ← visible in Inspect
-with shield  browser ──(ll_pub_…)──► your shield ──(real key)──► api.openai.com</div>
+  <section class="reveal">
+    <span class="eyebrow">Straight talk</span>
+    <h3>Two things no tool can change.</h3>
+    <div class="two">
+      <div class="truth"><h4>A key in the browser can't be hidden.</h4><p>Obfuscation, splitting and in-browser encryption all fail: the key shows in the Network tab the moment it's sent. The only fix is that the real key never reaches the browser.</p></div>
+      <div class="truth"><h4>A key that was public may be copied.</h4><p>Moving it to a server stops new copies. Rotating it is the only way to cut off anyone who already took it. That's your call; we'll tell you the risk plainly.</p></div>
+    </div>
   </section>
 
-  <footer>Built by <a href="https://github.com/sgroy10">Sandeep Roy</a>, maker of <a href="https://github.com/sgroy10/speclock">SpecLock</a>. "No keys found" never means "you are safe": keys hidden in unusual ways can be missed.</footer>
+  <div class="cta reveal">
+    <div><h3>Help a vibe coder sleep tonight.</h3><p>LeakLock is free and open source. A star helps more people find it.</p></div>
+    <a href="https://github.com/sgroy10/leaklock">★ Star LeakLock on GitHub</a>
+  </div>
+
+  <footer>Built by <a href="https://github.com/sgroy10">Sandeep Roy</a>. MIT licensed. "No keys found" is good news, not a guarantee: keys hidden in unusual ways can be missed. Only scan sites you own or have permission to test.</footer>
 </div>
 
 <script>
+/* ---------- 3D padlock: points projected on a canvas, no libraries ---------- */
+(() => {
+  const cv = document.getElementById('lock'), ctx = cv.getContext('2d');
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let W, H, DPR;
+  function size() { DPR = Math.min(2, devicePixelRatio || 1); W = cv.clientWidth; H = cv.clientHeight; cv.width = W * DPR; cv.height = H * DPR; ctx.setTransform(DPR, 0, 0, DPR, 0, 0); }
+  size(); addEventListener('resize', size);
+
+  // Body: surface of a rounded box. Shackle: a tube bent into an arch.
+  const body = [], shackle = [];
+  const BW = 1.25, BH = 1.0, BD = .55;
+  for (let i = 0; i < 900; i++) {
+    const f = Math.floor(Math.random() * 6), u = Math.random() * 2 - 1, v = Math.random() * 2 - 1;
+    let p;
+    if (f === 0) p = [u * BW, v * BH, BD]; else if (f === 1) p = [u * BW, v * BH, -BD];
+    else if (f === 2) p = [BW, v * BH, u * BD]; else if (f === 3) p = [-BW, v * BH, u * BD];
+    else if (f === 4) p = [u * BW, BH, v * BD]; else p = [u * BW, -BH, v * BD];
+    // keyhole: leave a gap on the front face
+    if (f === 0 && Math.hypot(p[0], p[1] - .12) < .2) continue;
+    if (f === 0 && Math.abs(p[0]) < .08 && p[1] < 0 && p[1] > -.45) continue;
+    body.push(p);
+  }
+  const R = .82, r = .17;
+  for (let i = 0; i < 520; i++) {
+    const t = Math.random(), a = Math.random() * Math.PI * 2;
+    let cx, cy, tx, ty;
+    if (t < .5) { const th = Math.PI * (t / .5); cx = Math.cos(th) * R; cy = Math.sin(th) * R + 1.45; tx = Math.cos(th); ty = Math.sin(th); }
+    else if (t < .75) { cx = R; cy = 1.45 - (t - .5) / .25 * .55; tx = 1; ty = 0; }
+    else { cx = -R; cy = 1.45 - (t - .75) / .25 * .55; tx = -1; ty = 0; }
+    shackle.push([cx + tx * Math.cos(a) * r, cy + ty * Math.cos(a) * r, Math.sin(a) * r, cx]);
+  }
+  // Leaking key fragments orbiting the lock.
+  const frags = ['sk-p…R2dw', 'Bearer d41f…', 'x-api-key', '?key=AIza…', 'service_role', 'Qm7x…Lp2v', 'sk_live_…', 'ghp_…'];
+  const orb = frags.map((s, i) => ({ s, a: i / frags.length * Math.PI * 2, y: (Math.random() - .5) * 1.8, rad: 2.2 + Math.random() * .5, sp: .15 + Math.random() * .12 }));
+
+  let rotY = .5, rotX = -.18, mx = 0, my = 0, open = .45, openT = .45, speed = .28, speedT = .28, tint = [11, 11, 15], tintT = [11, 11, 15], accent = [255, 77, 46];
+  addEventListener('pointermove', (e) => { mx = e.clientX / innerWidth - .5; my = e.clientY / innerHeight - .5; });
+  window.LL3D = {
+    scanning() { speedT = 2.4; openT = .45; accent = [255, 77, 46]; },
+    leak() { speedT = .45; openT = .75; tintT = [255, 77, 46]; accent = [255, 77, 46]; },
+    clean() { speedT = .2; openT = 0; tintT = [15, 157, 88]; accent = [15, 157, 88]; },
+  };
+
+  function proj(x, y, z) {
+    const cy = Math.cos(rotY), sy = Math.sin(rotY), cx = Math.cos(rotX), sx = Math.sin(rotX);
+    let X = x * cy - z * sy, Z = x * sy + z * cy;
+    let Y = y * cx - Z * sx; Z = y * sx + Z * cx;
+    const d = 5.2, s = Math.min(W, H) * .2 * d / (d + Z);
+    return [W / 2 + X * s, H / 2 + 30 + Y * -s, Z];
+  }
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(.05, (now - last) / 1000); last = now;
+    speed += (speedT - speed) * .05; open += (openT - open) * .06;
+    for (let i = 0; i < 3; i++) tint[i] += (tintT[i] - tint[i]) * .05;
+    rotY += dt * speed; rotX += ((-.18 - my * .5) - rotX) * .05;
+    const ry = rotY + mx * .8; const saved = rotY; rotY = ry;
+    ctx.clearRect(0, 0, W, H);
+    // soft floor shadow
+    const g = ctx.createRadialGradient(W / 2, H / 2 + 30 + Math.min(W, H) * .3, 5, W / 2, H / 2 + 30 + Math.min(W, H) * .3, Math.min(W, H) * .35);
+    g.addColorStop(0, 'rgba(11,11,15,.12)'); g.addColorStop(1, 'rgba(11,11,15,0)');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    const pts = [];
+    for (const p of body) pts.push([...proj(p[0], p[1], p[2]), 0]);
+    const lift = open * .55, swing = open * .9;
+    for (const p of shackle) {
+      // open: lift the shackle and swing it around its left leg
+      let x = p[0], y = p[1] + lift, z = p[2];
+      const px = -R, ang = swing; const dx = x - px;
+      x = px + dx * Math.cos(ang); z = z + dx * Math.sin(ang);
+      pts.push([...proj(x, y, z), 1]);
+    }
+    pts.sort((a, b) => b[2] - a[2]);
+    for (const [x, y, z, k] of pts) {
+      const depth = Math.max(0, Math.min(1, (z + 1.6) / 3.2));
+      const a = .9 - depth * .65, rad = (k ? 2.1 : 1.8) * (1.25 - depth * .5);
+      const c = k ? accent : tint;
+      ctx.fillStyle = `rgba(${c[0] | 0},${c[1] | 0},${c[2] | 0},${a})`;
+      ctx.beginPath(); ctx.arc(x, y, rad, 0, 6.283); ctx.fill();
+    }
+    ctx.font = '600 12px ui-monospace,Menlo,monospace'; ctx.textAlign = 'center';
+    for (const o of orb) {
+      o.a += dt * o.sp * (speed / .28) * .6;
+      const [x, y, z] = proj(Math.cos(o.a) * o.rad, o.y + .3, Math.sin(o.a) * o.rad);
+      const depth = Math.max(0, Math.min(1, (z + 2.5) / 5));
+      ctx.fillStyle = `rgba(${accent[0]},${accent[1]},${accent[2]},${.85 - depth * .7})`;
+      ctx.fillText(o.s, x, y);
+    }
+    rotY = saved;
+    if (!reduce) requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+})();
+
+/* ---------- tilt cards in 3D, reveal on scroll ---------- */
+document.querySelectorAll('.card').forEach((el) => {
+  el.addEventListener('pointermove', (e) => {
+    const b = el.getBoundingClientRect(), x = (e.clientX - b.left) / b.width - .5, y = (e.clientY - b.top) / b.height - .5;
+    el.style.transform = `rotateY(${x * 10}deg) rotateX(${-y * 10}deg) translateZ(6px)`;
+  });
+  el.addEventListener('pointerleave', () => { el.style.transform = ''; });
+});
+const io = new IntersectionObserver((es) => es.forEach((e) => e.isIntersecting && e.target.classList.add('in')), { threshold: .12 });
+document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+/* ---------- scanner ---------- */
 const $ = (s) => document.querySelector(s);
-const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
-const LABEL = { critical:'Critical', secret:'Secret', review:'Check', safe:'Safe' };
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const LABEL = { critical: 'Critical', secret: 'Secret', review: 'Check', safe: 'Safe' };
 
 function render(r) {
   const s = r.summary, bad = s.critical + s.secret;
   const host = esc(new URL(r.url).hostname);
-  let h = '';
-  if (bad) {
-    h += `<div class="verdict bad"><h2>${bad} secret key${bad > 1 ? 's' : ''} exposed on ${host}</h2><p>Anyone visiting your site can copy ${bad > 1 ? 'these' : 'this'}. Rotate first, then move ${bad > 1 ? 'them' : 'it'} off the browser.</p></div>`;
-  } else if (s.review) {
-    h += `<div class="verdict"><h2>Nothing critical, ${s.review} key${s.review > 1 ? 's' : ''} to check</h2><p>These depend on how they're restricted. Details below.</p></div>`;
-  } else {
-    h += `<div class="verdict ok"><h2>No secret keys found on ${host}</h2><p>Scanned ${r.files} files. That's good news, not a guarantee: keys hidden in unusual ways can be missed.</p></div>`;
-  }
-  for (const f of r.findings) {
+  let h = '<div class="result">';
+  if (bad) h += `<div class="verdict bad"><h2>${bad} secret key${bad > 1 ? 's' : ''} exposed on ${host}</h2><p>Anyone visiting your site can copy ${bad > 1 ? 'these' : 'this'}. Open "How to fix" on each one.</p></div>`;
+  else if (s.review) h += `<div class="verdict"><h2>Nothing critical, ${s.review} key${s.review > 1 ? 's' : ''} to check</h2><p>These are fine only if restricted. Details below.</p></div>`;
+  else h += `<div class="verdict ok"><h2>No secret keys found on ${host}</h2><p>Scanned ${r.files} files. Good news, not a guarantee: keys hidden in unusual ways can be missed.</p></div>`;
+  r.findings.forEach((f, i) => {
     const files = f.files.slice(0, 3).map(esc).join(', ') + (f.files.length > 3 ? ` +${f.files.length - 3} more` : '');
     h += `<div class="finding"><div class="row"><span class="chip ${f.severity}">${LABEL[f.severity]}</span><span class="prov">${esc(f.provider)}</span><span class="key">${esc(f.masked)}</span></div>
       <div class="files">in ${files}</div>
       ${f.advice ? `<p class="advice">${esc(f.advice)}</p>` : ''}
-      ${f.rotate && f.severity !== 'safe' ? `<a class="rot" href="${esc(f.rotate)}" target="_blank" rel="noopener">Rotate this key →</a>` : ''}</div>`;
-  }
+      ${f.fix ? `<details class="fix"${i === 0 ? ' open' : ''}><summary>How to fix</summary><ol>${f.fix.steps.map((x) => `<li>${esc(x)}</li>`).join('')}</ol>
+        <div class="prompt"><span class="lbl">Paste into Lovable, Bolt, Cursor or your AI builder</span><button class="copy" data-i="${i}">Copy</button>${esc(f.fix.prompt)}</div></details>` : ''}
+    </div>`;
+  });
   if (r.sourceMapsPublic.length) h += `<div class="note">${r.sourceMapsPublic.length} source map${r.sourceMapsPublic.length > 1 ? 's are' : ' is'} public, so your original source code is readable too. Turn off <code>build.sourcemap</code> for production.</div>`;
   if (r.hitFileLimit) h += `<div class="note">This site loads a lot of files; we checked the first ${r.files}. Run <code>npx leaklock scan ${host}</code> for a full scan.</div>`;
   h += `<p class="status">${r.files} files · ${(r.bytes / 1024 / 1024).toFixed(1)} MB · ${(r.ms / 1000).toFixed(1)} s</p>`;
-  const msg = bad ? `LeakLock found ${bad} exposed API key${bad > 1 ? 's' : ''} in my app. Rotating now. Check yours:` : `My app passed LeakLock's API key leak check. Check yours:`;
-  h += `<div class="share"><a target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(location.origin)}">Share on X</a><a target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(location.origin)}">Share on LinkedIn</a><a href="https://github.com/sgroy10/leaklock" target="_blank" rel="noopener">★ Star LeakLock</a></div>`;
+  const msg = bad ? `LeakLock found ${bad} exposed API key${bad > 1 ? 's' : ''} in my app. Fixing it now. Check yours:` : `My app passed LeakLock's API key leak check. Check yours:`;
+  h += `<div class="share"><a class="s" target="_blank" rel="noopener" href="https://github.com/sgroy10/leaklock">★ Star LeakLock</a><a target="_blank" rel="noopener" href="https://twitter.com/intent/tweet?text=${encodeURIComponent(msg)}&url=${encodeURIComponent(location.origin)}">Share on X</a><a target="_blank" rel="noopener" href="https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(location.origin)}">Share on LinkedIn</a></div></div>`;
   $('#out').innerHTML = h;
+  $('#out').querySelectorAll('.copy').forEach((btn) => btn.addEventListener('click', async () => {
+    try { await navigator.clipboard.writeText(r.findings[btn.dataset.i].fix.prompt); btn.textContent = 'Copied'; } catch { btn.textContent = 'Select & copy'; }
+    setTimeout(() => (btn.textContent = 'Copy'), 1800);
+  }));
+  bad ? LL3D.leak() : LL3D.clean();
 }
 
 async function scan(url) {
-  $('#b').disabled = true;
-  $('#out').innerHTML = `<p class="status">Scanning ${esc(url)} … reading HTML, bundles and source maps</p>`;
+  $('#b').disabled = true; LL3D.scanning();
+  $('#out').innerHTML = `<div class="result"><div class="scanning"><span class="status">Scanning ${esc(url)}</span><div class="bar"><i></i></div></div><p class="status" style="margin-top:10px">Reading HTML, bundles, lazy chunks and source maps…</p></div>`;
+  $('#out').scrollIntoView({ behavior: 'smooth', block: 'start' });
   history.replaceState(null, '', '?url=' + encodeURIComponent(url));
   try {
     const res = await fetch('/api/scan?url=' + encodeURIComponent(url));
@@ -156,12 +373,10 @@ async function scan(url) {
     if (!res.ok) throw new Error(data.error || 'Scan failed');
     render(data);
   } catch (e) {
-    $('#out').innerHTML = `<div class="verdict"><h2>Couldn't scan that</h2><p>${esc(e.message)}</p></div>`;
-  } finally {
-    $('#b').disabled = false;
-  }
+    $('#out').innerHTML = `<div class="result"><div class="verdict"><h2>Couldn't scan that</h2><p>${esc(e.message)}</p></div></div>`;
+    LL3D.clean();
+  } finally { $('#b').disabled = false; }
 }
-
 $('#f').addEventListener('submit', (e) => { e.preventDefault(); scan($('#u').value.trim()); });
 const q = new URLSearchParams(location.search).get('url');
 if (q) { $('#u').value = q; scan(q); }
