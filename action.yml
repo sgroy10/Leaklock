@@ -1,0 +1,47 @@
+name: 'LeakLock: API key leak check'
+description: 'Fail the build when a secret API key ships to the browser. Scans your build folder or your live/preview URL, including keys for APIs with no known format.'
+author: 'Sandeep Roy'
+branding:
+  icon: 'lock'
+  color: 'red'
+inputs:
+  target:
+    description: 'A build folder (e.g. dist) or a URL (e.g. https://myapp.com or a preview deployment URL).'
+    required: true
+    default: 'dist'
+  fail-on:
+    description: 'Fail when anything at or above this level is found: critical, secret or review. Use "none" to only report.'
+    required: false
+    default: 'secret'
+outputs:
+  critical:
+    description: 'Number of critical findings'
+    value: ${{ steps.scan.outputs.critical }}
+  secret:
+    description: 'Number of secret findings'
+    value: ${{ steps.scan.outputs.secret }}
+runs:
+  using: 'composite'
+  steps:
+    - id: scan
+      shell: bash
+      env:
+        LL_TARGET: ${{ inputs.target }}
+        LL_FAIL_ON: ${{ inputs.fail-on }}
+      run: |
+        set +e
+        node "${{ github.action_path }}/bin/leaklock.js" scan "$LL_TARGET" --fix --fail-on="$LL_FAIL_ON"
+        code=$?
+        node "${{ github.action_path }}/bin/leaklock.js" scan "$LL_TARGET" --json --fail-on=none > "$RUNNER_TEMP/leaklock.json" 2>/dev/null
+        node -e '
+          const r = require(process.argv[1]);
+          const s = r.summary, fs = require("fs");
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `critical=${s.critical}\nsecret=${s.secret}\n`);
+          let md = `### 🔒 LeakLock\n\n${s.critical} critical · ${s.secret} secret · ${s.review} to review · ${s.safe} safe (public by design)\n\n`;
+          if (r.findings.length) {
+            md += "| Level | Key | Masked | Files |\n|---|---|---|---|\n";
+            for (const f of r.findings) md += `| ${f.severity} | ${f.provider} | \`${f.masked}\` | ${f.files.slice(0, 2).join(", ")} |\n`;
+          } else md += "No secret keys found.\n";
+          fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, md);
+        ' "$RUNNER_TEMP/leaklock.json" || true
+        exit $code
